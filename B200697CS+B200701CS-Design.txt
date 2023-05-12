@@ -1,0 +1,166 @@
+﻿
+                                                                                         DESIGN DOCUMENT
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                                                       Purpose
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+The purpose of this design document is to provide a detailed description of the design (pseudo-code) and functionality of the simulation 
+application that uses UDP sockets for transmission and reception of packets. Implementation of the system is outlined in this document.
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                                                     Introduction
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+To design a simulation application that uses UDP sockets for the transmission and reception of packets between a sender and receiver. 
+The sender will generate and transmit packets of two different types while the receiver will receive and process the packets. Sender 
+packets contain a packet type (1 or 2), sequence number, byte array of 1024 bytes, and a trailer  for the entire packet. Four 
+threads will be involved in the receiver process, each with a distinct function. First thread will check for errors in the received packets, 
+the second and third threads will process packets of type1 and type2, respectively, and the fourth thread will periodically print out the 
+total number of packets received. 
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                                                  Pseudocode : Client
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1. Define packet structure with type_of_packet, sequenceNum, payload, trailer fields.
+2. Declare global variable sequenceNum, integer sockfd and structure servaddr as sockaddr_in 
+
+3. send_type1_packets(arg)
+        1. Create structure serveaddr sockaddr_in
+        2. Create Packet structure packet
+        3. Loop forever
+                    - Set packet type to 1
+                    - Set packet sequenceNum to sequenceNum and increment sequenceNum
+                    - Set "This is type 1 packet" to payload
+                    - compute_trailer()
+                    - Print packet type, sequenceNum and trailer
+                    - For i = 0 to length of payload
+                              - Print payload of i
+                    - Send packet to servaddr using sockfd
+                    - Sleep for 100ms
+
+4. send_type2_packets(arg):
+        1. Create structure serveaddr sockaddr_in
+        2. Create Packet structure packet
+        3. Loop forever
+                   - Set packet type to 2
+                    - Set packet sequenceNum to sequenceNum and increment sequenceNum
+                    - Set "This is type 2 packet" to payload
+                    - compute_trailer()
+                    - Print packet type, sequenceNum and trailer
+                    - For i = 0 to length of payload
+                              - Print payload of i
+                    - Send packet to servaddr using sockfd
+                    - Sleep for 150ms
+
+5. create_thread()
+       1. Declare thread handles
+       2. Create type 1 packets sending thread
+       3. Create type 1 packets sending thread
+       4. Join threads
+
+6. fill_server_info()
+       1. Initialize servaddr fields
+
+6. Main()
+       1. Create a socket and store sockfd
+       2. If sockfd is -1
+                   - Print error message
+                   - exit
+       3. Call fill_server_info()    
+       4. Call create_thread()
+       5.  Close socketfd
+       6.  return 0
+
+7. compute_trailer(packet)
+        1. Initialize trailer to 0
+        2. Convert packet to uint8_t pointer 
+        3. For packet_contents=0 to PACKET_SIZE - 4
+                   - packet_contents[i] XOR trailer
+        4.  Return trailer
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+                                                                                                 Pseudocode : Server
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+1. Initialize global variables sockfd, servaddr, cliaddr, len
+2. Define packet structure with type_of_packet, sequenceNum, payload, trailer and lock 
+3. Define PacketQueue structure with queue, front, rare and lock
+4. Initialize packet_queue
+5. Set type_1 and type_2 to 0
+
+6. create_thread()
+        1. Declare checker_thread, type1_thread, type2_thread, print_thread as pthread_t
+        2. Create thread by passing &checker_thread and error_checker
+        3. Create thread by passing &type1_thread and type1_process_details
+        4. Create thread by passing &type2_thread and type2_process_details
+        5. Create thread by passing &print_thread and print_packet_count
+        6. Join all the threads
+
+7. Main()
+        1. Create UDP sockets 
+        2. Bind the socket to the server address
+        3. Initialize packet_queue
+        4. Create threads error_checker, type1_process_details, type2_process_details, print_packet_count
+        5. Join threads
+        6. Close socket
+
+8. compute_trailer()
+       1. Initialize trailer to 0
+       2. Convert packet to uint8_t pointer 
+       3. For packet_contents=0 to PACKET_SIZE - 4
+                  - packet_contents[i] XOR trailer
+       4. Return trailer
+
+9. error_check_function()
+      1. Loop forever:
+                       - Receive packet from socket
+                       - Calculate and check the trailer of the packet
+                       - If trailer is valid:
+                                 1. Increment packet type count
+                                 2. Enqueue the packet
+                      - Else print error message
+
+10. print_details_1(Packet *packet)
+        1. Print "Packet 1 received"
+        2. Print "Packet 1 sequence number : " + packet.sequenceNum
+        3. Print "Packet 1 payload:" 
+        4. For i=0 to length of packet.payload - 1
+                     - Print packet.payload[i]
+        5. Print "Packet 1 trailer : " + compute_trailer 
+
+11. print_details_2(Packet *packet)
+        1. Print "Packet 2 received"
+        2. Print "Packet 2 sequence number : " + packet.sequenceNum
+        3. Print "Packet 2 payload:" 
+        4. For i=0 to length of packet.payload - 1
+                     - Print packet.payload[i]
+        5. Print "Packet 2 trailer : " + compute_trailer(packet)
+
+12.  type1_process_details()
+        1.  Loop forever:
+                       - Dequeue packet from queue
+                       - If packet type is 1
+                                  1. Process the packet 
+
+13. type2_process_details()
+        1.  Loop forever:
+                       - Dequeue packet from queue
+                       - If packet type is 2
+                                   1. Process the packet 
+
+14. enqueue()
+      1. Lock queue mutex
+      2. Update rare queue index
+      3. Enqueue packet
+      4. Unlock queue mutex
+
+15. dequeue()
+      1. Update front queue index
+      2. dequeue packet
+      3. Return dequeued packet
+
+16. print_packet_count()
+       1. Loop forever
+                      - Print packets received type 1
+                      - Print packets received type 2
+                      - Sleep for 300ms
+
+-------------------------------------------------------------------------------------------------------------------------------------------------------------------------
